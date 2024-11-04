@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>dh-hos VietQR Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+    <style>
+        label {
+            display: inline-block;
+            width: 150px;
+            margin-top: 4px;
+        }
+        input {
+            width: calc(40% - 170px);
+            color: gray; /* Màu chữ mờ */
+        }
+    </style>
+</head>
+<body>
+    <h1>DỮ LIỆU ĐẦU VÀO</h1>
+    <form id="emvForm">
+        <label for="version">00:</label>
+        <input type="text" id="version" name="version" value="01"> (<b>Phiên bản dữ liệu:</b> độ dài 2 ký tự)<br>
+
+        <label for="initmethod">01:</label>
+        <input type="text" id="initmethod" name="initmethod" value="BVUB123456"> (<b>Phương thức khởi tạo:</b> độ dài 2 ký tự)<br>
+
+        <label for="initmethod">38:</label><br>
+
+        <label for="guid" style="margin-left: 30px;  width: 120px;">00:</label>
+        <input type="text" id="guid" name="guid" value="A000000727"> (<b>Guid</b>> độ dài tối đa 32 ký tự)<br>
+
+        <label for="initmethod" style="margin-left: 30px;">01:</label><br>
+
+        <label for="acquierid" style="margin-left: 60px;  width: 90px;">00:</label>
+        <select id="acquierid" name="acquierid" style="width: calc(40% - 160px);">
+            <option value="970436" selected>Vietcombank-970436</option>
+            <option value="970403">Sacombank-970403</option>
+            <option value="970405">Agribank-970405</option>
+            <option value="970407">Techcombank-970407</option>
+            <option value="970412">PVcomBank-970412</option>
+            <option value="970415">Vietinbank-970415</option>
+            <option value="970418">BIDV-970418</option>
+            <option value="970422">MBBank-970422</option>
+            <option value="970437">HDBank-970437</option>
+        </select> (<b>BankID</b>)<br>
+
+        <label for="merchanid" style="margin-left: 60px;  width: 90px;">01:</label>
+        <input type="text" id="merchanid" name="merchanid" value="0111000355111" style="color: black;"> (<b>Số tài khoản:</b> độ dài tối đa 19 ký tự)<br>
+
+        <label for="servicecode" style="margin-left: 30px;  width: 120px;">02:</label>
+        <input type="text" id="servicecode" name="servicecode" value="QRIBFTTA"> (<b>Method:</b> độ dài tối đa 10 ký tự)<br>
+
+        <label for="currency">53:</label>
+        <input type="text" id="currency" name="currency" value="704"> (<b>Mã tiền tệ:</b> độ dài 3 ký tự)<br>
+
+        <label for="amount">54:</label>
+        <input type="text" id="amount" name="amount" value="1000"> (<b>Số tiền thanh toán:</b> độ dài tối đa 13 ký tự)<br>
+
+        <label for="nationality">58:</label>
+        <input type="text" id="nationality" name="nationality" value="VN"> (<b>Mã quốc gia:</b> độ dài 2 ký tự)<br>
+
+        <label for="additionalInfo">62:</label>
+        <input type="text" id="additionalInfo" name="additionalInfo" value="0824CHUYEN TIEN NHANH QUA QR"> (<b>Thông tin bổ sung:</b> tối đa 99 ký tự, viết không dấu)<br><br>
+        <label for="note" style="width: 100%;">-Note: thay đổi <u>BankID</u> và <u>Số tài khoản</u>, các giá trị khác thường được đặt mặc định. Ấn vào nút <b>Tạo QRData</b> để lấy QRData và QRCode.</label>
+        <label for="tailieu" style="width: 100%;">-Tài liệu tham khảo: <a href="https://github.com/dh-hos-code/qrcode-vietqr/blob/master/QR_Format_T%26C_v1.0_VN_092021.pdf">GenQR</a></label>
+        <br><br>    
+
+        <button type="button" style="width: 200px;" onclick="generateEMV()">Tạo QRData</button>
+    </form>
+
+    <h2>Chuỗi QRData:</h2>
+    <p id="result"></p>
+    <h2>QR Code:</h2>
+    <canvas id="qrcode"></canvas>
+
+    <script>
+        class EMV {
+            constructor(version, initmethod, guid, acquierid, merchanid, servicecode, currency, amount, nationality, additionalInfo) {
+                this.version = version;
+                this.initmethod = initmethod;
+                this.guid = guid;
+                this.acquierid = acquierid;
+                this.merchanid = merchanid;
+                this.servicecode = servicecode;
+                this.currency = currency;
+                this.amount = amount;
+                this.nationality = nationality;
+                this.additionalInfo = additionalInfo;
+            }
+
+            toEMVString() {
+                let emvString = '';
+
+                emvString += `00${this.version.length.toString().padStart(2, '0')}${this.version}`;
+                emvString += `01${this.initmethod.length.toString().padStart(2, '0')}${this.initmethod}`;
+
+                let beneficiaryString = '';
+                beneficiaryString += `00${this.guid.length.toString().padStart(2, '0')}${this.guid}`;
+
+                let acquier_id = `00${this.acquierid.length.toString().padStart(2, '0')}${this.acquierid}`;
+                let merchan_id = `01${this.merchanid.length.toString().padStart(2, '0')}${this.merchanid}`;
+                beneficiaryString += `01${(acquier_id + merchan_id).length.toString().padStart(2, '0')}${acquier_id + merchan_id}`;
+
+
+                beneficiaryString += `02${this.servicecode.length.toString().padStart(2, '0')}${this.servicecode}`;
+
+                emvString += `38${beneficiaryString.length.toString().padStart(2, '0')}${beneficiaryString}`;
+                emvString += `53${this.currency.length.toString().padStart(2, '0')}${this.currency}`;
+                emvString += `54${this.amount.length.toString().padStart(2, '0')}${this.amount}`;
+                emvString += `58${this.nationality.length.toString().padStart(2, '0')}${this.nationality}`;
+                emvString += `62${this.additionalInfo.length.toString().padStart(2, '0')}${this.additionalInfo}`;
+
+                return emvString+6304;
+            }
+
+            calculateCRC(emvString) {
+                // Tính CRC-16/CCITT-FALSE sử dụng thuật toán
+                let crc = 0xFFFF;
+                for (let i = 0; i < emvString.length; i++) {
+                    crc ^= emvString.charCodeAt(i) << 8;
+                    for (let j = 0; j < 8; j++) {
+                        if (crc & 0x8000) {
+                            crc = (crc << 1) ^ 0x1021;
+                        } else {
+                            crc <<= 1;
+                        }
+                        crc &= 0xFFFF; // Đảm bảo rằng giá trị CRC luôn nằm trong 16 bit
+                    }
+                }
+                return crc.toString(16).toUpperCase().padStart(4, '0');
+            }
+
+            toEMVStringWithCRC() {
+                const emvString = this.toEMVString();
+                const crcValue = this.calculateCRC(emvString);
+                return `${emvString}${crcValue}`;
+            }
+        }
+
+        function generateEMV() {
+            const version = document.getElementById('version').value;
+            const initMethod = document.getElementById('initmethod').value;
+            const identifier = document.getElementById('guid').value;
+            const beneficiaryBankId = document.getElementById('acquierid').value;
+            const beneficiaryAccountNumber = document.getElementById('merchanid').value;
+            const method = document.getElementById('servicecode').value;
+            const currency = document.getElementById('currency').value;
+            const amount = document.getElementById('amount').value;
+            const nation = document.getElementById('nationality').value;
+            const additionalData = document.getElementById('additionalInfo').value;
+
+            const emv = new EMV(version, initMethod, identifier, beneficiaryBankId, beneficiaryAccountNumber, method, currency, amount, nation, additionalData);
+            const emvStringWithCRC = emv.toEMVStringWithCRC();
+
+            document.getElementById('result').textContent = emvStringWithCRC;
+
+            // Generate QR code
+            const canvas = document.getElementById('qrcode');
+            QRCode.toCanvas(canvas, emvStringWithCRC, function (error) {
+                if (error) console.error(error);
+                console.log('QR code generated!');
+            });
+        }
+    </script>
+</body>
+</html>
